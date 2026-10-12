@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peg Hole Stabilizer (Web)</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --fg:#222; --mut:#666; --acc:#2563eb; --ok:#15803d; --ng:#b91c1c; --bd:#d8dbe0; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#1c1d20; --card:#26282c; --fg:#e8e8ea; --mut:#9a9da3; --bd:#3a3d43; --acc:#60a5fa; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.5 -apple-system,"Hiragino Sans",sans-serif; background:var(--bg); color:var(--fg); }
+  header { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:var(--card); border-bottom:1px solid var(--bd); }
+  h1 { font-size:16px; margin:0; }
+  main { max-width:900px; margin:16px auto; padding:0 16px; display:grid; gap:12px; }
+  section { background:var(--card); border:1px solid var(--bd); border-radius:8px; padding:14px 16px; }
+  h2 { font-size:13px; margin:0 0 8px; color:var(--mut); font-weight:600; }
+  button { font:inherit; padding:6px 14px; border:1px solid var(--bd); border-radius:6px; background:var(--card); color:var(--fg); cursor:pointer; }
+  button.primary { background:var(--acc); color:#fff; border-color:var(--acc); font-weight:600; padding:8px 24px; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  #drop { border:2px dashed var(--bd); border-radius:8px; padding:18px; text-align:center; color:var(--mut); }
+  #drop.over { border-color:var(--acc); background:rgba(37,99,235,.08); }
+  label { margin-right:14px; white-space:nowrap; }
+  .row { display:flex; flex-wrap:wrap; gap:6px 0; align-items:center; margin:4px 0; }
+  progress { width:100%; height:10px; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th, td { text-align:left; padding:4px 8px; border-bottom:1px solid var(--bd); }
+  .ok { color:var(--ok); } .ng { color:var(--ng); font-weight:600; }
+  #log { font:12px/1.5 ui-monospace,Menlo,monospace; color:var(--mut); max-height:120px; overflow:auto; white-space:pre-wrap; }
+  .mut { color:var(--mut); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="t_title">Peg Hole Stabilizer</h1>
+  <div><button id="langBtn">English</button></div>
+</header>
+<main>
+  <section>
+    <h2 id="t_input">入力</h2>
+    <div id="drop">
+      <div id="t_drop">ここに画像フォルダをドラッグ&ドロップ</div>
+      <div style="margin-top:8px">
+        <button id="pickDir">フォルダを選択…</button>
+        <input type="file" id="dirInput" webkitdirectory multiple hidden>
+        <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.bmp" multiple hidden>
+        <button id="pickFiles">ファイルを選択…</button>
+      </div>
+      <div id="inputInfo" class="mut" style="margin-top:6px"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2 id="t_output">出力</h2>
+    <div class="row" id="outRow">
+      <button id="pickOut">出力フォルダを選択…</button>
+      <span id="outInfo" class="mut" style="margin-left:10px"></span>
+    </div>
+    <div class="mut" id="t_outHint"></div>
+    <div class="row" style="margin-top:8px">
+      <span id="t_orient">出力画像のタップ穴の方向:</span>&nbsp;
+      <label><input type="radio" name="orient" value="0" checked> <span class="o0">上</span></label>
+      <label><input type="radio" name="orient" value="1"> <span class="o1">右</span></label>
+      <label><input type="radio" name="orient" value="2"> <span class="o2">下</span></label>
+      <label><input type="radio" name="orient" value="3"> <span class="o3">左</span></label>
+    </div>
+  </section>
+
+  <section>
+    <h2 id="t_opts">オプション</h2>
+    <div class="row">
+      <label><input type="checkbox" id="optTry" checked> <span id="t_try">見つからなければ画像を回転して探す</span></label>
+    </div>
+    <div class="row">
+      <span id="t_xform">画像の変換:</span>&nbsp;
+      <label><input type="checkbox" id="optTrans" checked> <span id="t_trans">平行移動</span></label>
+      <label><input type="checkbox" id="optRot" checked> <span id="t_rot">回転</span></label>
+      <label><input type="checkbox" id="optScale" checked> <span id="t_scale">拡大縮小</span></label>
+    </div>
+    <div class="row">
+      <span id="t_bg">余白の色:</span>&nbsp;
+      <label><input type="radio" name="bg" value="white" checked> <span id="t_white">白</span></label>
+      <label><input type="radio" name="bg" value="paper"> <span id="t_paper">各ページの紙色</span></label>
+    </div>
+    <div class="row">
+      <span id="t_nf">タップ未検出フォルダ名:</span>&nbsp;
+      <input type="text" id="nfName" value="_not_founds" size="20" spellcheck="false">
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="optDel" disabled> <span id="t_del">処理後に元ファイルを削除する</span></label>
+      <span class="mut" id="t_delHint"></span>
+    </div>
+  </section>
+
+  <section>
+    <div class="row" style="justify-content:space-between">
+      <button id="start" class="primary" disabled>スタート</button>
+      <span id="status" class="mut"></span>
+    </div>
+    <progress id="prog" value="0" max="1" style="margin-top:8px"></progress>
+  </section>
+
+  <section id="resSec" hidden>
+    <h2 id="t_result">結果</h2>
+    <table><thead><tr><th>#</th><th id="th_folder">フォルダ</th><th id="th_file">ファイル</th><th id="th_state">状態</th><th id="th_scale">拡縮</th><th id="th_angle">傾き補正</th><th id="th_dpi">DPI</th></tr></thead><tbody id="resBody"></tbody></table>
+    <div id="zipArea" style="margin-top:8px"></div>
+  </section>
+
+  <section><h2>Log</h2><div id="log"></div></section>
+</main>
+<script src="core.js"></script>
+<script src="zip.js"></script>
+<script src="dpi.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
